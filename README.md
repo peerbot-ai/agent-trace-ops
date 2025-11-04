@@ -1,6 +1,6 @@
 # Token optimization plugin for Claude Code
 
-Analyzes your Claude Code conversation history to detect repetitive multi-step patterns/tool calls. 
+agent-trace-ops (ato) analyzes your conversation’s tool-call chains and auto-suggests refactors to reduce tokens and latency.
 1. Extracts and enriches tool call metadata with timing, token counts, and file ranges
 2. Compresses session data with RLE for efficient pattern detection
 3. Generates actionable optimization suggestions:
@@ -8,7 +8,7 @@ Analyzes your Claude Code conversation history to detect repetitive multi-step p
    - **Parameterized Scripts**: Reusable workflows that handle different inputs
    - **File Refactorings**: Merge/split files accessed together to reduce token overhead
 
-![Demo](demo.gif)
+![Demo](demo.mp4)
 
 ## Usage
 
