@@ -50,39 +50,39 @@ Claude AI then suggests helper scripts and file refactorings that can save token
 
 **Quick Commands** - Combine repeated bash sequences:
 ```bash
-# Before: 4 separate Bash calls each time you test ($0.0055 per iteration)
+# Before: 4 separate Bash calls each time you test
 npm run build
 npm run test
 npm run lint
 npm run format:check
 
 # After: 1 command in package.json scripts
-npm run precommit  # → $1.40 (75% savings, 200 iterations per year)
+npm run precommit  # Reduces from 4 calls to 1
 # package.json: "precommit": "npm run build && npm test && npm run lint && npm run format:check"
 ```
 
 **Parameterized Scripts** - Reusable workflows:
 ```bash
-# Before: 4 Bash calls every time you debug a service ($0.0060 per service)
+# Before: 4 Bash calls every time you debug a service
 docker ps | grep auth-service
 docker logs auth-service --tail=100
 docker exec auth-service cat /app/config.json
 docker stats auth-service --no-stream
 
 # After: 1 script call with parameters
-./scripts/debug-service.sh auth-service 100  # → $0.0015 (75% savings, 300 iterations per year)
+./scripts/debug-service.sh auth-service 100  # Reduces from 4 calls to 1
 # Reusable for any service: api-gateway, payment-processor, etc.
 ```
 
 **File Refactorings** - Merge co-accessed files:
 ```bash
-# Before: Reading 3 files per change ($0.0345)
-Read: src/types.ts (203 lines)
-Read: src/utils.ts (156 lines)
-Read: src/config.ts (89 lines)
+# Before: Reading 3 files per change
+1. Read: [+0s 6156b] types.ts[L1-L203]
+2. Read: [+1s 4720b] utils.ts[L1-L156]
+3. Read: [+1s 2696b] config.ts[L1-L89]
 
 # After: Merged into src/core.ts (448 lines)
-Read: src/core.ts (448 lines)  # → $0.0115 (67% savings, 200 iterations per year)
+1. Read: [+0s 13572b] core.ts[L1-L448]  # Reduces from 3 reads to 1
 ```
 
 > **See [instructions.md](instructions.md) for detailed pattern examples and optimization strategies.**

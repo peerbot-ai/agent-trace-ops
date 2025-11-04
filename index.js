@@ -34,62 +34,6 @@ class TokenOptimizer {
     }
   }
 
-  /**
-   * Model pricing (per 1M tokens)
-   */
-  getModelPricing(model) {
-    if (!model) {
-      return { input: 3, output: 15, name: 'Claude 3.5 Sonnet (assumed)' };
-    }
-
-    const modelLower = model.toLowerCase();
-
-    // Claude Sonnet 4.5 pricing (verify current pricing)
-    if (modelLower.includes('sonnet-4-5') || modelLower.includes('sonnet-4.5') || modelLower.includes('sonnet-4')) {
-      return { input: 3, output: 15, name: model };
-    }
-
-    // Claude 3.5 Sonnet pricing
-    if (modelLower.includes('sonnet-3-5') || modelLower.includes('sonnet-3.5') || modelLower.includes('sonnet-3')) {
-      return { input: 3, output: 15, name: model };
-    }
-
-    // Claude 3 Opus pricing (higher tier)
-    if (modelLower.includes('opus')) {
-      return { input: 15, output: 75, name: model };
-    }
-
-    // Claude 3 Haiku pricing (lower tier)
-    if (modelLower.includes('haiku')) {
-      return { input: 0.25, output: 1.25, name: model };
-    }
-
-    // Default to Sonnet pricing but keep actual model name
-    // This is a fallback - verify actual pricing for unknown models
-    return { input: 3, output: 15, name: `${model} (assumed Sonnet pricing)` };
-  }
-
-  /**
-   * Calculate cost based on actual usage
-   */
-  calculateCost(inputTokens, outputTokens, model) {
-    const pricing = this.getModelPricing(model);
-    const inputCost = (inputTokens / 1000000) * pricing.input;
-    const outputCost = (outputTokens / 1000000) * pricing.output;
-    return {
-      total: inputCost + outputCost,
-      input: inputCost,
-      output: outputCost,
-      modelName: pricing.name
-    };
-  }
-
-  /**
-   * Format cost for display
-   */
-  formatCost(cost) {
-    return `$${cost.toFixed(4)}`;
-  }
 
   /**
    * Check if Claude CLI is available
@@ -242,6 +186,27 @@ class TokenOptimizer {
   }
 
   /**
+   * Check if a conversation file has any tool uses (quick check without full processing)
+   */
+  hasToolUses(filePath) {
+    try {
+      const entries = this.parseJSONL(filePath);
+      for (const entry of entries) {
+        if (entry.type === 'assistant' && entry.message?.content) {
+          for (const block of entry.message.content) {
+            if (block.type === 'tool_use') {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Parse a JSONL file (one JSON object per line)
    */
   parseJSONL(filePath) {
@@ -360,16 +325,14 @@ class TokenOptimizer {
     });
 
     // Get most common model or default
-    const modelName = models.size > 0 ? Array.from(models)[0] : null;
-    const costData = this.calculateCost(totalInputTokens, totalOutputTokens, modelName);
+    const modelName = models.size > 0 ? Array.from(models)[0] : 'unknown';
 
     report += `## Summary\n`;
     report += `- Total Conversations: ${sequences.length}\n`;
     report += `- Total Tool Calls: ${totalToolCalls}\n`;
-    report += `- Model: ${costData.modelName}\n`;
+    report += `- Model: ${modelName}\n`;
     report += `- Input Tokens: ${totalInputTokens}\n`;
-    report += `- Output Tokens: ${totalOutputTokens}\n`;
-    report += `- Total Cost: ${this.formatCost(costData.total)} (in: ${this.formatCost(costData.input)}, out: ${this.formatCost(costData.output)})\n\n`;
+    report += `- Output Tokens: ${totalOutputTokens}\n\n`;
 
     // Extract tool usage from timelines
     const toolCounts = {};
@@ -665,15 +628,33 @@ ${sharedInstructions}`;
       }));
       filesWithTimestamps.sort((a, b) => b.timestamp - a.timestamp);
 
-      // Take only the N most recent files (or all if recentLimit is null)
-      const filesToProcess = this.recentLimit !== null
-        ? filesWithTimestamps.slice(0, this.recentLimit).map(f => f.path)
-        : filesWithTimestamps.map(f => f.path);
+      // If recentLimit is set, filter to only conversations with tool uses, then take N most recent
+      // Otherwise, process all files (they'll be filtered later if they have no tool uses)
+      let filesToProcess;
+      if (this.recentLimit !== null) {
+        // Quick scan: find files with tool uses, then take the N most recent
+        const filesWithToolUses = [];
+        for (const file of filesWithTimestamps) {
+          if (this.hasToolUses(file.path)) {
+            filesWithToolUses.push(file.path);
+            if (filesWithToolUses.length >= this.recentLimit) {
+              break;
+            }
+          }
+        }
+        filesToProcess = filesWithToolUses;
+      } else {
+        filesToProcess = filesWithTimestamps.map(f => f.path);
+      }
 
       if (this.format === 'cli' && !this.print) {
         console.log(`\n📂 Found ${allFiles.length} conversation file(s)`);
-        if (this.recentLimit !== null && filesToProcess.length < allFiles.length) {
-          console.log(`📅 Analyzing ${filesToProcess.length} most recent (use --recent=${allFiles.length} to analyze all)\n`);
+        if (this.recentLimit !== null) {
+          if (filesToProcess.length < this.recentLimit) {
+            console.log(`📅 Found ${filesToProcess.length} conversation(s) with tool uses (requested ${this.recentLimit})\n`);
+          } else {
+            console.log(`📅 Analyzing ${filesToProcess.length} most recent conversation(s) with tool uses\n`);
+          }
         } else {
           console.log(`📅 Analyzing all ${filesToProcess.length} conversation(s)\n`);
         }
@@ -760,6 +741,17 @@ ${sharedInstructions}`;
 
       if (allConversations.length === 0) {
         throw new Error('No valid conversation data found');
+      }
+
+      if (allSequences.length === 0) {
+        const suggestion = allFiles.length > filesToProcess.length
+          ? `Try analyzing more conversations with --recent=${Math.min(allFiles.length, 50)} to find conversations with tool uses.`
+          : `All ${allConversations.length} conversation file(s) in this project have no tool uses. Try a different project or check if conversations have tool calls.`;
+        throw new Error(
+          `Found ${allConversations.length} conversation file(s) but none contain tool uses.\n` +
+          `This tool analyzes conversations that include tool calls (Read, Write, Edit, Bash, etc.).\n` +
+          suggestion
+        );
       }
 
       if (this.format === 'cli') {

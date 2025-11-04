@@ -9,7 +9,7 @@ Steps:
 
 2. If report exists:
    - Use AskUserQuestion to ask: "Found report from [timestamp]. What would you like to do?"
-   - Options: "Reuse existing report (faster)" | "Generate fresh report (includes latest conversations)"
+   - Options: "Reuse existing report" | "Generate fresh report (includes latest conversations)"
 
 3. Generate or retrieve report:
    - If "Reuse existing": Read the existing report file from step 1
@@ -17,26 +17,39 @@ Steps:
      - Run: `node ${CLAUDE_PLUGIN_ROOT}/index.js --project-path=$(pwd) --print`
      - This command outputs the report to stdout AND saves to ~/.ato/projects/{project}/report-{timestamp}.md
      - Use the Bash tool output directly (it contains the full report markdown)
-     - Note: By default, all conversations are analyzed. Use --recent=N to limit analysis for faster processing.
+     - Note: By default, all conversations are analyzed. Use --recent=N to limit analysis for recent conversations.
 
 4. Use AskUserQuestion (multiSelect:true) to ask which optimizations:
    - "Quick Commands"
    - "Parameterized Scripts (reusable bash/python scripts)"
    - "File Refactorings (merge/split frequently accessed files)"
 
-5. Launch Task agents in PARALLEL (single message with 3 Task calls):
-   - Task(subagent_type=general-purpose, prompt="Find 5+ Quick Command patterns...")
-   - Task(subagent_type=general-purpose, prompt="Find 5+ Script patterns...")
-   - Task(subagent_type=general-purpose, prompt="Find 5+ Refactoring patterns...")
+5. Analyze the report directly and generate optimizations for selected categories:
+   - Analyze report and generate minimum 5 suggestions per selected category
+   - Calculate impact based on occurrences of patterns
+   - **For Scripts category: Show FULL script implementations with complete code in your response**
+   - **For Scripts category: Explain reasoning for why each script is useful (problem solved, token savings, use cases)**
+   - For each script, include:
+     * Complete, production-ready code with shebang, error handling, usage examples
+     * Explanation of why it's useful (what problem it solves)
+     * Token savings breakdown (per-use and total savings)
+     * When to use it (use cases and scenarios)
+   - **For File Refactorings category: Explain reasoning for each refactoring (why useful, token savings, implementation approach, trade-offs)**
+   - For each refactoring, include:
+     * Current file structure and access patterns
+     * Proposed file structure
+     * Before/after token usage comparison
+     * Implementation approach and considerations
+     * Potential trade-offs and recommendations
+   - Display all findings directly in your response
 
-6. Each agent:
-   - Analyzes report and generates minimum 5 suggestions per category
-   - Calculates impact: occurrences × cost_per_use
-   - Writes findings to CLAUDE.md in relevant directory
-
-7. Show summary: "Found X patterns, potential savings: $Y.YY"
+6. Show summary: "Found X patterns"
+   - **For Scripts: Include full script contents and reasoning directly in the response**
+   - **For File Refactorings: Include full explanations with reasoning, token savings, and implementation approach**
+   - **Display complete code blocks and detailed explanations so user can see implementations and rationale immediately**
+   - Organize by category with clear headings
 
 Important:
-- Launch agents in parallel (one message, multiple Task tool calls)
+- Analyze and show results directly - do not delegate to Task agents
 - Report location: ~/.ato/projects/-{project-path-with-slashes-as-dashes}/
 - Always ask before regenerating (respect user's choice)
