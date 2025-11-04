@@ -9,7 +9,7 @@ Analyzes your Claude Code conversation history, enriches tool call metadata, com
 ### Claude Code Plugin
 
 ```bash
-/plugin marketplace add peerbot-ai/claude-optimizer
+/plugin marketplace add peerbot-ai/claude-code-optimizer
 /plugin install agent-trace-ops
 ```
 
