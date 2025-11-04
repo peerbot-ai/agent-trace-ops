@@ -1,8 +1,12 @@
 # Token optimization plugin for Claude Code
 
-Analyzes your Claude Code conversation history, enriches tool call metadata, compresses conversation data with RLE, and uses Claude Code to detect repetitive multi-step patterns. It suggests:
-1. Helper scripts that trigger multiple tool calls in a single Bash command to save tokens on repeated workflows.
-2. File refactorings that merges/splits files to save tokens on repeated workflows.
+Analyzes your Claude Code conversation history to detect repetitive multi-step patterns. The tool:
+1. Extracts and enriches tool call metadata with timing, token counts, and file ranges
+2. Compresses session data with RLE for efficient pattern detection
+3. Generates actionable optimization suggestions:
+   - **Quick Commands**: One-liner chains for package.json/Makefile
+   - **Parameterized Scripts**: Reusable workflows that handle different inputs
+   - **File Refactorings**: Merge/split files accessed together to reduce token overhead
 
 ![Demo](demo.gif)
 
@@ -40,91 +44,84 @@ This will:
    - Quick Commands (one-liner chains for package.json/Makefile)
    - Parameterized Scripts (reusable workflows)
    - File Refactorings (merge/split frequently accessed files)
-4. Launch parallel Task agents to analyze patterns
-5. Generate helpers and show potential token savings
+4. Analyze patterns and generate optimization suggestions
+5. Show helpers with potential token savings calculations
 
 ## How it works
 
-### Claude Session Files
+Every conversation in Claude Code is saved as JSONL (JSON Lines) files in `~/.claude/projects/<hash>/`. The tool analyzes these sessions and generates a report:
 
-Every conversation in Claude Code is saved as JSONL (JSON Lines) files in `~/.claude/projects/<hash>/`. Here's what a real session looks like:
-
-```jsonl
-{"type":"text","text":"Let me search for authentication code"}
-
-{"type":"tool_use","id":"toolu_01ABC","name":"codebase_search","input":{
-  "query":"How does user authentication work?",
-  "target_directories":[]
-}}
-
-{"type":"thinking","thinking":"I found the auth flow in backend/auth/. Now I should look at the middleware to see how sessions are validated..."}
-
-{"type":"tool_use","id":"toolu_02DEF","name":"read_file","input":{
-  "target_file":"backend/auth/middleware.js"
-}}
-
-{"type":"tool_use","id":"toolu_03GHI","name":"read_file","input":{
-  "target_file":"backend/auth/session.js"
-}}
-
-{"type":"tool_use","id":"toolu_04JKL","name":"read_file","input":{
-  "target_file":"backend/auth/validators.js"
-}}
 ```
+# Conversation History Analysis
 
-### What This Tool Does
+## Summary
+- Total Conversations: 3
+- Total Tool Calls: 13
+- Model: claude-sonnet-4-5-20250929
+- Input Tokens: 11687
+- Output Tokens: 5576
 
-**agent-trace-ops** analyzes these session files to find patterns:
+## Tool Usage Distribution
+- Read: 2 calls
+- Edit: 2 calls
+- Bash: 2 calls
+- Task: 1 calls
 
-1. 🔍 **Detects repetitive workflows** - Spots when you read the same files together multiple times
-2. 🧠 **Includes thinking blocks** - Uses Claude's internal reasoning to understand *why* actions were taken
-3. 📊 **Compresses with RLE** - Groups repeated patterns: `[read_file × 3]` instead of listing each call
-4. 🤖 **Sends to Claude AI** - Let's Claude analyze the patterns and suggest optimizations
+## Sessions
 
-The thinking blocks are especially valuable because they reveal the *intent* behind tool calls:
-> "I should look at the middleware to see how sessions are validated"
+### Session agent-567356cb [2025-11-04 03:15:59] (29s)
+1. Read: [3106b] .zshrc[L1-L64]
+💭 [+3s in=89t out=8t]
+2. Edit: [+9s 1048b] settings.json[L1-L4], statusline-command.sh[L1-L31]
+3. Read: [+1s 9069b] count_tokens.js[L1-L245]
+💭 [+2s in=156t out=12t]
+4. Edit: [+6s 740b] settings.json[L1-L4]
+⏹️ MessageEnd [+4s in=12t out=45t]
 
-This helps Claude AI suggest better optimizations like:
-- Merge `middleware.js`, `session.js`, and `validators.js` → `auth/core.js`
-- Create script: `./scripts/show-auth-flow.sh` to display all auth files at once
+### Session 396d2518 [2025-11-04 01:42:53] (2m 10s)
+1. Bash: [cmd=96b out=177b] node index.js --project-path=$(pwd) --list
+💭 [+2s in=45t out=6t]
+2. Bash: [+4s cmd=97b out=1396b] node index.js --project-path=$(pwd) --print
+⏹️ MessageEnd [+3s in=18t out=234t]
+```
 
 ### Example Optimizations
 
-**Quick Commands** - Combine repeated bash sequences:
+**Quick Commands** - Combine repeated bash sequences (package.json/Makefile):
 ```bash
-# Before: 4 separate Bash calls each time you test
-npm run build
-npm run test
-npm run lint
-npm run format:check
+# Detected pattern (found 23 times in sessions):
+4. Bash: [+1s cmd=8b] make build-packages
+5. Bash: [+8s cmd=16b] docker compose restart gateway
+6. Bash: [+1s cmd=17b] sleep 5
+7. Bash: [+6s cmd=23b] docker compose logs gateway --tail=50
 
-# After: 1 command in package.json scripts
-npm run precommit  # Reduces from 4 calls to 1
-# package.json: "precommit": "npm run build && npm test && npm run lint && npm run format:check"
+# Suggested: Add to Makefile or package.json
+make deploy-gateway  # Reduces 4 calls → 1 call
+# Saves: ~190 tokens per use × 23 times = ~4,370 tokens total
 ```
 
-**Parameterized Scripts** - Reusable workflows:
+**Parameterized Scripts** - Reusable workflows with different parameters:
 ```bash
-# Before: 4 Bash calls every time you debug a service
-docker ps | grep auth-service
-docker logs auth-service --tail=100
-docker exec auth-service cat /app/config.json
-docker stats auth-service --no-stream
+# Detected pattern (found 15 times with different worker IDs):
+8. Bash: [+0s cmd=30b] docker ps --filter "name=worker-1762140643"
+9. Bash: [+2s cmd=32b] docker logs worker-1762140643-abc --tail=50
+10. Bash: [+1s cmd=33b] docker logs worker-1762140643-abc | grep "error"
 
-# After: 1 script call with parameters
-./scripts/debug-service.sh auth-service 100  # Reduces from 4 calls to 1
-# Reusable for any service: api-gateway, payment-processor, etc.
+# Suggested script: ./scripts/worker-logs.sh
+./scripts/worker-logs.sh 1762140643 50 "error"  # Reduces 3 calls → 1 call
+# Saves: ~150 tokens per use × 15 times = ~2,250 tokens total
 ```
 
 **File Refactorings** - Merge co-accessed files:
 ```bash
-# Before: Reading 3 files per change
-1. Read: [+0s 6156b] types.ts[L1-L203]
-2. Read: [+1s 4720b] utils.ts[L1-L156]
-3. Read: [+1s 2696b] config.ts[L1-L89]
+# Detected pattern (found 23 times):
+1. Read: [+0s 6156b] src/interactions.ts[L1-L812]
+2. Read: [+2s 4720b] src/types.ts[L1-L203]
+3. Read: [+1s 2696b] src/custom-tools.ts[L1-L156]
 
-# After: Merged into src/core.ts (448 lines)
-1. Read: [+0s 13572b] core.ts[L1-L448]  # Reduces from 3 reads to 1
+# Suggested: Merge into src/core.ts (1171 lines)
+1. Read: [+0s 13572b] src/core.ts[L1-L1171]  # Reduces 3 reads → 1 read
+# Saves: ~380 tokens per cycle × 23 times = ~8,740 tokens total
 ```
 
 > **See [instructions.md](instructions.md) for detailed pattern examples and optimization strategies.**
