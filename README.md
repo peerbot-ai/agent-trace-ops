@@ -8,7 +8,7 @@ agent-trace-ops (ato) analyzes your conversation’s tool-call chains and auto-s
    - **Parameterized Scripts**: Reusable workflows that handle different inputs
    - **File Refactorings**: Merge/split files accessed together to reduce token overhead
 
-<video src="https://github.com/peerbot-ai/agent-trace-ops/releases/download/video-upload/demo.mp4" controls></video>
+https://github.com/user-attachments/assets/cac017c2-0fe7-4a8e-841c-e431a9324769
 
 ## Usage
 
