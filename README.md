@@ -1,4 +1,4 @@
-# ato - save tokens on repeated workflows
+# Token optimization plugin for Claude Code
 
 Analyzes your Claude Code conversation history, enriches tool call metadata, compresses conversation data with RLE, and uses Claude Code to detect repetitive multi-step patterns. It suggests:
 1. Helper scripts that trigger multiple tool calls in a single Bash command to save tokens on repeated workflows.
@@ -9,14 +9,26 @@ Analyzes your Claude Code conversation history, enriches tool call metadata, com
 ### Claude Code Plugin
 
 ```bash
-/plugin marketplace add peerbot-ai/agent-trace-ops
+/plugin marketplace add peerbot-ai/claude-optimizer
 /plugin install agent-trace-ops
 ```
 
-After installing the plugin, use the `/optimize-tokens` command for on-demand analysis:
+After installing the plugin, use the `/optimize` command for on-demand analysis:
 
 ```bash
-/optimize-tokens
+/optimize
+```
+
+### CLI
+
+```bash
+npx agent-trace-ops
+```
+Install globally for repeated use:
+
+```bash
+npm install -g agent-trace-ops
+ato --project-path=<path> --agent=claude
 ```
 
 This will:
@@ -28,20 +40,6 @@ This will:
    - File Refactorings (merge/split frequently accessed files)
 4. Launch parallel Task agents to analyze patterns
 5. Generate helpers and show potential token savings
-
-### CLI
-
-Run a standalone analysis without installing:
-
-```bash
-npx agent-trace-ops
-```
-Install globally for repeated use:
-
-```bash
-npm install -g agent-trace-ops
-ato --project-path=<path> --agent=claude
-```
 
 ## How it works
 
