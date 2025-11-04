@@ -4,6 +4,8 @@ Analyzes your Claude Code conversation history, enriches tool call metadata, com
 1. Helper scripts that trigger multiple tool calls in a single Bash command to save tokens on repeated workflows.
 2. File refactorings that merges/splits files to save tokens on repeated workflows.
 
+![Demo](demo.gif)
+
 ## Usage
 
 ### Claude Code Plugin
