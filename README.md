@@ -45,8 +45,48 @@ This will:
 
 ## How it works
 
-Claude Code stores conversation history in `~/.claude/projects/<hash>/*.jsonl` files. The tool parses these files, extracts tool call patterns and sends them to Claude AI for analysis.
-Claude AI then suggests helper scripts and file refactorings that can save tokens on repeated workflows.
+### Claude Session Files
+
+Every conversation in Claude Code is saved as JSONL (JSON Lines) files in `~/.claude/projects/<hash>/`. Here's what a real session looks like:
+
+```jsonl
+{"type":"text","text":"Let me search for authentication code"}
+
+{"type":"tool_use","id":"toolu_01ABC","name":"codebase_search","input":{
+  "query":"How does user authentication work?",
+  "target_directories":[]
+}}
+
+{"type":"thinking","thinking":"I found the auth flow in backend/auth/. Now I should look at the middleware to see how sessions are validated..."}
+
+{"type":"tool_use","id":"toolu_02DEF","name":"read_file","input":{
+  "target_file":"backend/auth/middleware.js"
+}}
+
+{"type":"tool_use","id":"toolu_03GHI","name":"read_file","input":{
+  "target_file":"backend/auth/session.js"
+}}
+
+{"type":"tool_use","id":"toolu_04JKL","name":"read_file","input":{
+  "target_file":"backend/auth/validators.js"
+}}
+```
+
+### What This Tool Does
+
+**agent-trace-ops** analyzes these session files to find patterns:
+
+1. 🔍 **Detects repetitive workflows** - Spots when you read the same files together multiple times
+2. 🧠 **Includes thinking blocks** - Uses Claude's internal reasoning to understand *why* actions were taken
+3. 📊 **Compresses with RLE** - Groups repeated patterns: `[read_file × 3]` instead of listing each call
+4. 🤖 **Sends to Claude AI** - Let's Claude analyze the patterns and suggest optimizations
+
+The thinking blocks are especially valuable because they reveal the *intent* behind tool calls:
+> "I should look at the middleware to see how sessions are validated"
+
+This helps Claude AI suggest better optimizations like:
+- Merge `middleware.js`, `session.js`, and `validators.js` → `auth/core.js`
+- Create script: `./scripts/show-auth-flow.sh` to display all auth files at once
 
 ### Example Optimizations
 
