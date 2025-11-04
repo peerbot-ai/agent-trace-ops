@@ -874,10 +874,6 @@ Plugin Installation:
   /plugin marketplace add peerbot-ai/agent-trace-ops
   /plugin install agent-trace-ops
 
-NPM Installation:
-  npx agent-trace-ops
-  npm install -g agent-trace-ops
-
 For more info: https://github.com/peerbot-ai/agent-trace-ops
 `);
     process.exit(0);
